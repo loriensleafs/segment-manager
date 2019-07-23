@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useReducer } from 'react';
+import React, {
+	createContext,
+	useContext,
+	useEffect,
+	useReducer,
+	useState,
+} from 'react';
 import axios from 'axios';
 
 /**
@@ -11,10 +17,7 @@ const FAILURE = 'FAILURE';
 /**
  * The reducer that updates the state of the useApi hook.
  */
-const apiReducer = (
-	state = { data: null, status: null, message: null },
-	action,
-) => {
+const apiReducer = (state = [], action = {}) => {
 	switch (action.type) {
 		case REQUEST:
 			return {
@@ -25,13 +28,13 @@ const apiReducer = (
 			return {
 				...state,
 				status: null,
-				data: action.data,
+				data: action.data || null,
 			};
 		case FAILURE:
 			return {
 				...state,
 				status: 'error',
-				message: action.message,
+				message: action.message || null,
 			};
 		default:
 			return state;
@@ -45,12 +48,16 @@ const apiReducer = (
  * @param {Object} initOpts - Additional options for the request.
  * @return {Array} [{data, status, message}, makeRequest] - [{api state}, fetch]
  */
-const useApi = (initUrl, initOpts = {}) => {
-	const [ options, setOptions ] = useState({ url: initUrl, ...initOpts });
-	const [ apiState, dispatchAPI ] = useReducer(apiReducer);
+const useApi = (initialUrl = '', initOpts = {}) => {
+	const [ options, setOptions ] = useState(null);
+	const [ { data, status, message }, dispatchAPI ] = useReducer(apiReducer, {
+		data: null,
+		status: null,
+		message: null,
+	});
 
-	const makeRequest = (url, opts = {}) =>
-		setOptions({ ...options, ...{ url, ...opts } });
+	const makeRequest = (url = initialUrl, opts = {}) =>
+		setOptions({ ...initOpts, ...{ url, ...opts } });
 
 	useEffect(
 		() => {
@@ -63,7 +70,7 @@ const useApi = (initUrl, initOpts = {}) => {
 					const result = await axios(options);
 
 					if (!didCancel) {
-						dispatchAPI({ type: SUCCESS, data: res.data });
+						dispatchAPI({ type: SUCCESS, data: result });
 					}
 				} catch (error) {
 					if (!didCancel) {
@@ -80,7 +87,16 @@ const useApi = (initUrl, initOpts = {}) => {
 		[ options ],
 	);
 
-	return [ apiState, makeRequest ];
+	return [
+		{
+			data,
+			status,
+			loading: status === 'loading',
+			error: status === 'error',
+			message,
+		},
+		makeRequest,
+	];
 };
 
 export default useApi;
